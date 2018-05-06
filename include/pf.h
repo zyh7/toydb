@@ -26,15 +26,18 @@ struct FileHdr {
    int num_pages;
 };
 
-class FileHandle{
+class PF_FileHandle{
  public:
-  FileHandle();
-  ~FileHandle();
+  PF_FileHandle();
+  ~PF_FileHandle();
 
-  FileHandle(const FileHandle &f);
-  FileHandle& operator=(const FileHandle &f);
+  PF_FileHandle(const PF_FileHandle &f);
+  PF_FileHandle& operator=(const PF_FileHandle &f);
 
-  Status GetPage(PageNum num, Page &p);
+  Status GetPage(PageNum num, Page &p) const;
+  // get the used page at or after page num current
+  Status GetNextPage(PageNum current, Page &p, int &eof) const;
+  Status GetHeaderPage(Page &p);
   Status AllocatePage(Page &p);
   Status DisposePage(PageNum num);
   Status MarkDirty(PageNum num) const;
@@ -43,7 +46,7 @@ class FileHandle{
   Status ForcePages(PageNum num=-1);
 
  private:
-  friend class PFManager;
+  friend class PF_Manager;
   int fd_;
   int file_open_;
   FileHdr header_;
@@ -53,19 +56,19 @@ class FileHandle{
   int IsValidPageNum(PageNum n) const;
 };
 
-class PFManager{
+class PF_Manager{
  public:
-  PFManager();
-  ~PFManager();
+  PF_Manager();
+  ~PF_Manager();
 
   Status CreateFile(const char *fname);
   Status DeleteFile(const char *fname);
-  Status OpenFile(const char *fname, FileHandle &fh);
-  Status CloseFile(FileHandle &fh);
+  Status OpenFile(const char *fname, PF_FileHandle &fh);
+  Status CloseFile(PF_FileHandle &fh);
 
   // no copying allowed
-  PFManager(const PFManager &p);
-  PFManager& operator=(const PFManager &p);
+  PF_Manager(const PF_Manager &p);
+  PF_Manager& operator=(const PF_Manager &p);
 
  private:
   BufferManager *buffer_manager_;

@@ -15,7 +15,7 @@ static const int kPageSize = 4096;
 static const int kNumBuckets = 20;
 static const int kFileHeaderSize = 4096;
 
-struct PageHdr {
+struct PF_PageHeader {
     int nextFree;       // nextFree can be any of these values:
                         //  - the number of the next free page
                         //  -1 if this is last free page

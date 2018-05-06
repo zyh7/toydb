@@ -15,15 +15,15 @@
 
 namespace toydb {
 
-PFManager::PFManager(){
+PF_Manager::PF_Manager(){
   buffer_manager_ = new BufferManager(kBufferSize);
 }
 
-PFManager::~PFManager(){
+PF_Manager::~PF_Manager(){
   delete buffer_manager_;
 }
 
-Status PFManager::CreateFile(const char *fname) {
+Status PF_Manager::CreateFile(const char *fname) {
   int fd = open(fname, O_WRONLY);
   if (fd >= 0) {
     return Status(ErrorCode::kPF,"Can not create file. File already exists.");
@@ -45,14 +45,14 @@ Status PFManager::CreateFile(const char *fname) {
   return Status::OK();
 }
 
-Status PFManager::DeleteFile(const char *fname) {
+Status PF_Manager::DeleteFile(const char *fname) {
   if (unlink(fname) < 0) {
     return Status(ErrorCode::kPF,"can not delete file");
   }
   return Status::OK();
 }
 
-Status PFManager::OpenFile(const char *fname,FileHandle &fh){
+Status PF_Manager::OpenFile(const char *fname,PF_FileHandle &fh){
   if (fh.file_open_) return Status(ErrorCode::kPF, "file is already open");
   int fd = open(fname, O_RDWR);
   if (fd < 0) {
@@ -69,10 +69,12 @@ Status PFManager::OpenFile(const char *fname,FileHandle &fh){
   return Status::OK();
 }
 
-Status PFManager::CloseFile(FileHandle &fh) {
+Status PF_Manager::CloseFile(PF_FileHandle &fh) {
+  Status s;
   if (!fh.file_open_) {
     return Status(ErrorCode::kPF,"Can not close file.File is not open.");
   }
+  s = fh.FlushPages(); if(!s.ok()) return s;
   if (close(fh.fd_) < 0) {
     return Status(ErrorCode::kPF, "can not close file");
   }

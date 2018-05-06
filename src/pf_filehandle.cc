@@ -15,16 +15,16 @@
 
 
 namespace toydb {
-FileHandle::FileHandle() {
+PF_FileHandle::PF_FileHandle() {
   file_open_ = false;
   buffer_manager_ = nullptr;
 }
 
-FileHandle::~FileHandle() {
+PF_FileHandle::~PF_FileHandle() {
 
 }
 
-FileHandle::FileHandle(const FileHandle &f) {
+PF_FileHandle::PF_FileHandle(const PF_FileHandle &f) {
    fd_ = f.fd_;
    file_open_ = f.file_open_;
    buffer_manager_ = f.buffer_manager_;
@@ -32,11 +32,11 @@ FileHandle::FileHandle(const FileHandle &f) {
    header_ = f.header_;
 }
 
-int FileHandle::IsValidPageNum(PageNum num) const {
+int PF_FileHandle::IsValidPageNum(PageNum num) const {
   return (num >= 0 && num <header_.num_pages);
 }
 
-FileHandle& FileHandle::operator=(const FileHandle &f) {
+PF_FileHandle& PF_FileHandle::operator=(const PF_FileHandle &f) {
   if (this != &f) {
     fd_ = f.fd_;
     file_open_ = f.file_open_;
@@ -47,7 +47,7 @@ FileHandle& FileHandle::operator=(const FileHandle &f) {
   return *this;
 }
 
-Status FileHandle::GetPage(PageNum num, Page &p) {
+Status PF_FileHandle::GetPage(PageNum num, Page &p) const{
   Status s;
   char *page_buf;
   if (file_open_ == false) {
@@ -58,8 +58,8 @@ Status FileHandle::GetPage(PageNum num, Page &p) {
   }
   s = buffer_manager_->GetPage(fd_, num, &page_buf);
   if (!s.ok()) return s;
-  if (((PageHdr*)page_buf)->nextFree == -2) {
-     p.data = page_buf + sizeof(PageHdr);
+  if (((PF_PageHeader*)page_buf)->nextFree == -2) {
+     p.data = page_buf + sizeof(PF_PageHeader);
      p.num = num;
      return Status::OK();
   }
@@ -68,7 +68,33 @@ Status FileHandle::GetPage(PageNum num, Page &p) {
   return Status(ErrorCode::kPF, "can not getpage, it is a free page");
 }
 
-Status FileHandle::AllocatePage(Page &p) {
+Status PF_FileHandle::GetNextPage(PageNum current, Page &p, int &eof) const {
+  Status s;
+  char *page_buf;
+  if (file_open_ == false) {
+    return Status(ErrorCode::kPF, "file is not open.can not get next page");
+  }
+  if (current == header_.num_pages) {
+    eof = true;
+    return Status::OK();
+  }
+  if (!IsValidPageNum(current)) {
+    return Status(ErrorCode::kPF, "page num is invalid");
+  }
+  for (PageNum i = current; i < header_.num_pages; i++) {
+    s = buffer_manager_->GetPage(fd_, i, &page_buf); if (!s.ok()) return s;
+    if (((PF_PageHeader*) page_buf)->nextFree == -2) {
+      p.data = page_buf + sizeof(PF_PageHeader);
+      p.num = i;
+      return Status::OK();
+    }
+    s = buffer_manager_->UnpinPage(fd_, current);  if (!s.ok()) return s;
+  }
+  eof = true;
+  return Status::OK();
+}
+
+Status PF_FileHandle::AllocatePage(Page &p) {
   Status s;
   char *buf;
   PageNum num;
@@ -79,7 +105,7 @@ Status FileHandle::AllocatePage(Page &p) {
     num = header_.first_free;
     s = buffer_manager_->GetPage(fd_, num, &buf);
     if (!s.ok()) return s;
-    header_.first_free = ((PageHdr*)buf)->nextFree;
+    header_.first_free = ((PF_PageHeader*)buf)->nextFree;
   } else {
     num = header_.num_pages;
     s = buffer_manager_->AllocatePage(fd_, num, &buf);
@@ -88,15 +114,15 @@ Status FileHandle::AllocatePage(Page &p) {
   }
   header_changed_ = true;
   memset(buf, 0, kPageSize);
-  ((PageHdr*)buf)->nextFree = -2;
+  ((PF_PageHeader*)buf)->nextFree = -2;
   s = buffer_manager_->MarkDirty(fd_, num);
   if (!s.ok()) return s;
-  p.data = buf + sizeof(PageHdr);
+  p.data = buf + sizeof(PF_PageHeader);
   p.num = num;
   return Status::OK();
 }
 
-Status FileHandle::DisposePage(PageNum num) {
+Status PF_FileHandle::DisposePage(PageNum num) {
   Status s;
   char *buf;
   if (file_open_ == false) {
@@ -106,12 +132,12 @@ Status FileHandle::DisposePage(PageNum num) {
     return Status(ErrorCode::kPF, "page num is invalid");
   }
   s = buffer_manager_->GetPage(fd_, num, &buf);
-  if (((PageHdr*)buf)->nextFree != -2) {
+  if (((PF_PageHeader*)buf)->nextFree != -2) {
     s = buffer_manager_->UnpinPage(fd_, num);
     if (!s.ok()) return s;
     return Status(ErrorCode::kPF, "page is already free.can not dispose");
   }
-  ((PageHdr*)buf)->nextFree = header_.first_free;
+  ((PF_PageHeader*)buf)->nextFree = header_.first_free;
   header_.first_free = num;
   header_changed_ = true;
   s = buffer_manager_->MarkDirty(fd_, num);
@@ -121,7 +147,7 @@ Status FileHandle::DisposePage(PageNum num) {
   return Status::OK();
 }
 
-Status FileHandle::MarkDirty(PageNum num) const {
+Status PF_FileHandle::MarkDirty(PageNum num) const {
   if (file_open_ == false) {
     return Status(ErrorCode::kPF, "file is not open.can not markdirty");
   }
@@ -131,7 +157,7 @@ Status FileHandle::MarkDirty(PageNum num) const {
   return buffer_manager_->MarkDirty(fd_, num);
 }
 
-Status FileHandle::UnpinPage(PageNum num) const {
+Status PF_FileHandle::UnpinPage(PageNum num) const {
   if (file_open_ == false) {
     return Status(ErrorCode::kPF, "file is not open.can not unpinpage");
   }
@@ -141,7 +167,7 @@ Status FileHandle::UnpinPage(PageNum num) const {
   return buffer_manager_->UnpinPage(fd_, num);
 }
 
-Status FileHandle::FlushPages() {
+Status PF_FileHandle::FlushPages() {
   if (file_open_ == false) {
      return Status(ErrorCode::kPF, "file is not open.can not flushpage");
   }
@@ -158,7 +184,7 @@ Status FileHandle::FlushPages() {
   return buffer_manager_->FlushPages(fd_);
 }
 
-Status FileHandle::ForcePages(PageNum num) {
+Status PF_FileHandle::ForcePages(PageNum num) {
   if (file_open_ == false) {
      return Status(ErrorCode::kPF, "file is not open.can not flushpage");
   }

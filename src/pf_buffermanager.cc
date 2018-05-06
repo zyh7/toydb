@@ -137,7 +137,7 @@ Status BufferManager::GetPage(int fd, PageNum num, char **ppbuffer,
     }
     Unlink(slot);
     LinkHead(slot);
-    buftable_->pin_count++;
+    buftable_[slot].pin_count++;
   } else {
     //if page is not in buffer
     s = AllocSlot(slot);
@@ -147,7 +147,6 @@ Status BufferManager::GetPage(int fd, PageNum num, char **ppbuffer,
     s = ReadPage(fd, num, buftable_[slot].data);
     if (!s.ok()) return s;
     InitPageDesc(fd, num, slot);
-    LinkHead(slot);
   }
   *ppbuffer = buftable_[slot].data;
   return Status::OK();

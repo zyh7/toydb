@@ -18,15 +18,11 @@ void test_status() {
   cout << s << endl;
 }
 
-void debug(){
-
-}
-
 void test_pfm() {
   cout << "testing pagefile manager..." << endl;
   Status s;
-  PFManager pfm;
-  FileHandle fh;
+  PF_Manager pfm;
+  PF_FileHandle fh;
   Page p;
 
   s = pfm.CreateFile("test.db");
