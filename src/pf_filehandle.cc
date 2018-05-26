@@ -126,7 +126,7 @@ Status PF_FileHandle::DisposePage(PageNum num) {
   Status s;
   char *buf;
   if (file_open_ == false) {
-    return Status(ErrorCode::kPF, "file is not open.can not allocate page");
+    return Status(ErrorCode::kPF, "file is not open.can not dispose page");
   }
   if (!IsValidPageNum(num)) {
     return Status(ErrorCode::kPF, "page num is invalid");

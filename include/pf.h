@@ -37,7 +37,6 @@ class PF_FileHandle{
   Status GetPage(PageNum num, Page &p) const;
   // get the used page at or after page num current
   Status GetNextPage(PageNum current, Page &p, int &eof) const;
-  Status GetHeaderPage(Page &p);
   Status AllocatePage(Page &p);
   Status DisposePage(PageNum num);
   Status MarkDirty(PageNum num) const;

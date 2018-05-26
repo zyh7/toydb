@@ -22,9 +22,6 @@ struct data {
   char c[64];
 };
 
-
-
-
 void test_rm() {
   PF_Manager pfm;
   RM_Manager rmm(pfm);
@@ -58,14 +55,6 @@ void test_rm() {
     data *r = (data *) rec.data_;
     cout << "int: " << r->a << " float: " << r->b << " string: " << r->c << endl;
   }
-
-
-
-
-
-
-
-
 
   for (unsigned int i = 0; i <  rids.size(); i++) {
     data *r;

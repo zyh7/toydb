@@ -16,7 +16,7 @@ namespace toydb{
 
 struct RID {
   PageNum page_num;
-  int slot_num;
+  SlotNum slot_num;
 
   RID() : page_num(-1), slot_num(-1) { }
   RID(PageNum p_num, SlotNum s_num) : page_num(p_num), slot_num(s_num) { }

@@ -20,6 +20,8 @@ enum AttrType {
   STRING
 };
 
+static const int kMaxStrLen = 4096;
+
 enum CompOp {
   NO_OP,
   EQ_OP,
