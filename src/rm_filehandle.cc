@@ -166,7 +166,7 @@ Status RM_FileHandle::GetNextRec(RID &rid, Record &rec, bool &eof) const {
     if (eof == true) break;
     s = GetPageHeaderAndBitmap(p, page_header, bitmap); if (!s.ok()) return s;
     if (page_header->num_records > 0) {
-      bool exist = GetNextOneBit(bitmap, page_header->num_records, slot_num);
+      bool exist = GetNextOneBit(bitmap, header_.num_record_per_page, slot_num);
       if (exist) {
         rid.page_num = page_num;
         rid.slot_num = slot_num;

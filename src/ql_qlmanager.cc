@@ -99,7 +99,7 @@ Status QL_Manager::RunSelect(QL_Node *top_node) {
   bool eof;
   s = top_node->OpenIt(); if (!s.ok()) return s;
   while (1) {
-    top_node->GetNext(buffer, eof); if (!s.ok()) return s;
+    s = top_node->GetNext(buffer, eof); if (!s.ok()) return s;
     if (eof) break;
     PrintBuffer(std::cout, buffer, attr_list, num_attrs);
   }
@@ -432,7 +432,7 @@ Status QL_Manager::CheckConditions(int num_conds, const Condition conditions[]) 
     AttrEntry *l_attr_entry;
     s = GetAttrEntry(conditions[i].l_attr, l_attr_entry); if (!s.ok()) return s;
     AttrType l_type = l_attr_entry->attrType;
-    std::string l_rel_string(l_attr_entry->attrName);
+    std::string l_rel_string(l_attr_entry->relName);
     int l_rel_num = rel_to_int_[l_rel_string];
     int rel_num;
     // check right attr
@@ -446,7 +446,7 @@ Status QL_Manager::CheckConditions(int num_conds, const Condition conditions[]) 
         return Status(ErrorCode::kQL,
                       "left and right type in condition is not consistant");
       }
-      std::string r_rel_string(r_attr_entry->attrName);
+      std::string r_rel_string(r_attr_entry->relName);
       int r_rel_num = rel_to_int_[r_rel_string];
       rel_num = std::max(l_rel_num, r_rel_num);
 
@@ -460,9 +460,9 @@ Status QL_Manager::CheckConditions(int num_conds, const Condition conditions[]) 
 
     std::map <int, std::vector <int>>::iterator it = rel_to_conds.find(rel_num);
     if (it == rel_to_conds.end()) {
-      std::vector<int> s;
-      s.push_back(i);
-      rel_to_conds.insert({rel_num, s});
+      std::vector<int> v;
+      v.push_back(i);
+      rel_to_conds.insert({rel_num, v});
     } else {
       rel_to_conds[rel_num].push_back(i);
     }

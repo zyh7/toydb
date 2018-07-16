@@ -54,7 +54,7 @@ void QL_NodeJoin::SetUpNode(int num_conds) {
 
 Status QL_NodeJoin::OpenIt() {
   Status s;
-  if (use_index_join_) {
+  if (!use_index_join_) {
     s = node1_.OpenIt(); if (!s.ok()) return s;
     s = node2_.OpenIt(); if (!s.ok()) return s;
   } else {

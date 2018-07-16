@@ -395,7 +395,7 @@ static int mk_conditions(NODE *list, int max, Condition conditions[])
       conditions[i].op = current->u.CONDITION.op;
       if (current->u.CONDITION.rhsRelattr) {
          conditions[i].r_is_attr = true;
-         conditions[i].r_attr.attr_name =
+         conditions[i].r_attr.rel_name =
             current->u.CONDITION.rhsRelattr->u.RELATTR.relname;
          conditions[i].r_attr.attr_name =
             current->u.CONDITION.rhsRelattr->u.RELATTR.attrname;
