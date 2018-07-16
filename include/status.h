@@ -38,6 +38,7 @@ class Status {
 
   Status(const Status &s);
   void operator=(const Status &s);
+  bool operator==(const Status &s);
 
   static inline Status OK() { return Status(); }
 

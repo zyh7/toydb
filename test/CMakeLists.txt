@@ -11,3 +11,7 @@ target_link_libraries(testrm rm pf utils)
 # test IX
 add_executable(testix test_ix.cc)
 target_link_libraries(testix ix rm pf utils)
+
+# test PARSER
+add_executable(testparser test_parser.cc)
+target_link_libraries(testparser parser ql sm ix rm pf utils -ltcmalloc_debug)

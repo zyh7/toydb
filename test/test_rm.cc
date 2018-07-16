@@ -45,7 +45,7 @@ void test_rm() {
 
   RM_FileScan fs;
   int num = 75;
-  int eof = 0;
+  bool eof = 0;
   void *value = (void *) &num;
   cout << "open scan" << fs.OpenScan(rfh, INT, 4, 0, LT_OP,value) << endl;
   while(1) {

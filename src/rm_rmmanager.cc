@@ -83,7 +83,7 @@ Status RM_Manager::CloseFile(RM_FileHandle &file_handle) {
   Page p;
   if (file_handle.header_changed_ == true) {
     s = file_handle.pfh_.GetPage(0, p); if (!s.ok()) return s;
-    memcpy(p.data, &file_handle.header_, sizeof(RM_PageHeader));
+    memcpy(p.data, &file_handle.header_, sizeof(RM_FileHeader));
     s = file_handle.pfh_.MarkDirty(0); if (!s.ok()) return s;
     s = file_handle.pfh_.UnpinPage(0); if (!s.ok()) return s;
   }

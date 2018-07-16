@@ -7,16 +7,17 @@
 
 #include "rm.h"
 #include "string.h"
+#include <stdlib.h>
 
 namespace toydb {
 
 Record::~Record() {
-  if (data_ != nullptr) delete data_;
+  if (data_ != nullptr) free(data_);
 }
 
 void Record::SetRecord(const RID &rid, const char *data, int size) {
   rid_ = rid;
-  data_ = new char[size];
+  data_ = (char *) malloc(size);
   memcpy(data_, data, size);
 }
 

@@ -8,11 +8,21 @@
 #ifndef TOYDB_TOYDB_H_
 #define TOYDB_TOYDB_H_
 
+void yyerror(const char *);
+#define yywrap() 1
+#define YY_SKIP_YYWRAP 1
+
 namespace toydb {
 
 typedef int PageNum;
 
 typedef int SlotNum;
+
+typedef int RC;
+
+static const int MAXATTRS = 40;
+static const int MAXNAME = 24;
+static const int MAXSTRINGLEN = 255;
 
 enum AttrType {
   INT,
@@ -21,6 +31,14 @@ enum AttrType {
 };
 
 static const int kMaxStrLen = 4096;
+
+static const int kMaxRelationName = 24;
+
+static const int kMaxAttrName = 24;
+
+static const int kMaxAttrNum = 40;
+
+static const int kMaxOutputString = 12;
 
 enum CompOp {
   NO_OP,

@@ -147,7 +147,7 @@ Status RM_FileHandle::GetRec(const RID &rid, Record &rec) const {
   return Status::OK();
 }
 
-Status RM_FileHandle::GetNextRec(RID &rid, Record &rec, int &eof) const {
+Status RM_FileHandle::GetNextRec(RID &rid, Record &rec, bool &eof) const {
   Status s;
   if (file_open_ == false) {
     return Status(ErrorCode::kRM, "can not get record. file is not open");

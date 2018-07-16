@@ -68,7 +68,7 @@ Status PF_FileHandle::GetPage(PageNum num, Page &p) const{
   return Status(ErrorCode::kPF, "can not getpage, it is a free page");
 }
 
-Status PF_FileHandle::GetNextPage(PageNum current, Page &p, int &eof) const {
+Status PF_FileHandle::GetNextPage(PageNum current, Page &p, bool &eof) const {
   Status s;
   char *page_buf;
   if (file_open_ == false) {
@@ -86,6 +86,7 @@ Status PF_FileHandle::GetNextPage(PageNum current, Page &p, int &eof) const {
     if (((PF_PageHeader*) page_buf)->nextFree == -2) {
       p.data = page_buf + sizeof(PF_PageHeader);
       p.num = i;
+      eof = false;
       return Status::OK();
     }
     s = buffer_manager_->UnpinPage(fd_, current);  if (!s.ok()) return s;

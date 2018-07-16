@@ -114,7 +114,7 @@ Status IX_Manager::CreateIndex(const char *file_name, int index_num,
   entry[header->max_keys_n].next_slot = -1;
   s = pfh.MarkDirty(root_page.num); if (!s.ok()) return s;
   s = pfh.UnpinPage(root_page.num); if (!s.ok()) return s;
-  s = pfh.FlushPages(); if (!s.ok()) return s;
+  s = pfm_.CloseFile(pfh); if (!s.ok()) return s;
   return Status::OK();
 }
 

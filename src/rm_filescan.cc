@@ -14,6 +14,7 @@ namespace toydb {
 
 RM_FileScan::RM_FileScan() {
   open_scan_ = false;
+  value_ = nullptr;
 }
 
 RM_FileScan::~RM_FileScan() {
@@ -91,7 +92,7 @@ Status RM_FileScan::OpenScan(RM_FileHandle &fh, AttrType attr_type,
       return Status(ErrorCode::kRM, "attr_length error");
     }
   }
-  if (attr_offset + attr_length > fh_->header_.record_size) {
+  if (attr_offset + attr_length > fh.header_.record_size) {
     return Status(ErrorCode::kRM, "attribute location is out of record range");
   }
   fh_ = &fh;
@@ -107,10 +108,13 @@ Status RM_FileScan::OpenScan(RM_FileHandle &fh, AttrType attr_type,
     case GT_OP: comparator_ = &greater_than; break;
     case LE_OP: comparator_ = &less_equal; break;
     case GE_OP: comparator_ = &greater_equal; break;
+    case NO_OP: comparator_ = nullptr; break;
     default: return Status(ErrorCode::kRM, "invalid compare type");
   }
-  value_ = malloc(attr_length);
-  memcpy(value_,value,attr_length);
+  if (comp_op != NO_OP) {
+    value_ = malloc(attr_length);
+    memcpy(value_,value,attr_length);
+  }
   rid_.page_num = 1;
   rid_.slot_num = 0;
   open_scan_ = true;
@@ -118,7 +122,7 @@ Status RM_FileScan::OpenScan(RM_FileHandle &fh, AttrType attr_type,
   return Status::OK();
 }
 
-Status RM_FileScan::GetNextRec(Record &rec, int &eof) {
+Status RM_FileScan::GetNextRec(Record &rec, bool &eof) {
   Status s;
   if (open_scan_ == false) {
     return Status(ErrorCode::kRM, "scan is not open");
@@ -139,7 +143,7 @@ Status RM_FileScan::GetNextRec(Record &rec, int &eof) {
       rid_.slot_num++;
     }
     char *value = rec.data_ + attr_offset_;
-    if (comparator_((void *)value, value_, attr_length_, attr_type_) || comp_op_ == NO_OP) {
+    if (comp_op_ == NO_OP || comparator_((void *)value, value_, attr_length_, attr_type_)) {
       break;
     }
 
@@ -151,8 +155,10 @@ Status RM_FileScan::CloseScan() {
   if (open_scan_ == false) {
     return Status(ErrorCode::kRM, "can not close scan. scan is not open");
   }
-  free(value_);
-  value_ = nullptr;
+  if (value_ != nullptr) {
+    free(value_);
+    value_ = nullptr;
+  }
   open_scan_ = false;
   return Status::OK();
 }

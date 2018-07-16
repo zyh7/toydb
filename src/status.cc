@@ -24,6 +24,11 @@ void Status::operator=(const Status &s) {
   error_info_ = s.error_info_;
 }
 
+bool Status::operator==(const Status &s) {
+  return (this->error_info_)->error_code == s.error_info_->error_code &&
+      (this->error_info_)->reason == s.error_info_->reason;
+}
+
 ErrorInfo::ErrorInfo(ErrorCode code, const char *msg) {
   error_code = code;
   reason = msg;

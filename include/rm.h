@@ -73,7 +73,7 @@ class RM_FileHandle {
   bool GetBit(const char *bitmap, int bit_num) const;
   bool GetNextOneBit(const char *bitmap, int size,int &bit_num) const;
   Status AllocateNewPage(Page &p);
-  Status GetNextRec(RID &rid, Record &rec, int &eof) const;
+  Status GetNextRec(RID &rid, Record &rec, bool &eof) const;
   Status GetPageHeaderAndBitmap(const Page &p, RM_PageHeader *&header, char *&bitmap) const;
   Status ResetBitmap(char *bitmap);
   void SetBit(char *bitmap, int bit_num);
@@ -89,7 +89,7 @@ class RM_FileScan {
 
   Status OpenScan(RM_FileHandle &fh, AttrType attr_type, int attr_length,
                   int attr_offset, CompOp comp_op, void *value);
-  Status GetNextRec(Record &rec, int &eof);
+  Status GetNextRec(Record &rec, bool &eof);
   Status CloseScan();
  private:
   int open_scan_;
