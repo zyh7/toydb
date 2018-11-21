@@ -37,6 +37,7 @@ struct AttrEntry {
 
 struct RelEntry{
   char relName[kMaxRelationName + 1];
+  int id;  // starting from 1
   int tupleLength;
   int attrCount;
   int indexCount;
@@ -74,6 +75,7 @@ class SM_Manager {
  private:
   IX_Manager &ixm_;
   RM_Manager &rmm_;
+//  WAL_Manager &wlm_;
   RM_FileHandle rel_cat_fh_;
   RM_FileHandle attr_cat_fh_;
   bool isValidAttrType(const AttrInfo &attribute) const;

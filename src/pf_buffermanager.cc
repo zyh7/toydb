@@ -95,13 +95,15 @@ Status BufferManager::AllocSlot(int &slot) {
 
 Status BufferManager::ReadPage(int fd, PageNum num, char *dest) {
   long offset = kFileHeaderSize + num * kPageSize;
-  if (lseek(fd, offset, SEEK_SET) < 0) {
-    return Status(ErrorCode::kPF, "lseek failed during readpage");
-  }
-  int num_bytes = read(fd, dest, kPageSize);
-  if (num_bytes != kPageSize) {
-    return Status(ErrorCode::kPF, "read failed during readpage");
-  }
+  int rt = pread(fd, dest, kPageSize, offset);
+  assert(rt > 0);
+//  if (lseek(fd, offset, SEEK_SET) < 0) {
+//    return Status(ErrorCode::kPF, "lseek failed during readpage");
+//  }
+//  int num_bytes = read(fd, dest, kPageSize);
+//  if (num_bytes != kPageSize) {
+//    return Status(ErrorCode::kPF, "read failed during readpage");
+//  }
   return Status::OK();
 }
 

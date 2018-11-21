@@ -130,10 +130,12 @@ void QL_Manager::PrintBuffer(std::ostream &c, void *buffer, int *attr_list, int 
     } else if (attr_entry_[slot].attrType == INT) {
       memcpy(&a, ((char *)buffer + offset), sizeof(int));
       c << a;
+      c << "  ";
       offset += sizeof(int);
     } else if (attr_entry_[slot].attrType == FLOAT) {
       memcpy(&b, (char *)buffer + offset, sizeof(float));
       c << b;
+      c << "  ";
       offset += sizeof(float);
     }
   }

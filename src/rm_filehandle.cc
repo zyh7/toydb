@@ -152,6 +152,10 @@ Status RM_FileHandle::GetNextRec(RID &rid, Record &rec, bool &eof) const {
   if (file_open_ == false) {
     return Status(ErrorCode::kRM, "can not get record. file is not open");
   }
+  if (header_.num_pages == 0) {
+    eof = true;
+    return Status::OK();
+  }
   if (!IsValidRID(rid)) {
     return Status(ErrorCode::kRM, "can not get get next record. rid is invalid");
   }
@@ -202,7 +206,7 @@ Status RM_FileHandle::DeleteRec(const RID &rid) {
   }
   ResetBit(bitmap, rid.slot_num);
   --(page_header->num_records);
-  if (page_header->num_records == header_.next_free_page - 1) {
+  if (page_header->num_records == header_.num_record_per_page - 1) {
     page_header->next_free = header_.next_free_page;
     header_.next_free_page = rid.page_num;
     header_changed_ = true;

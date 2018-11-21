@@ -30,10 +30,11 @@ PF_FileHandle::PF_FileHandle(const PF_FileHandle &f) {
    buffer_manager_ = f.buffer_manager_;
    header_changed_ = f.header_changed_;
    header_ = f.header_;
+   wal_handle = f.wal_handle;
 }
 
 int PF_FileHandle::IsValidPageNum(PageNum num) const {
-  return (num >= 0 && num <header_.num_pages);
+  return (num == -1 || (num > -1 && num <header_->num_pages));
 }
 
 PF_FileHandle& PF_FileHandle::operator=(const PF_FileHandle &f) {
@@ -43,6 +44,7 @@ PF_FileHandle& PF_FileHandle::operator=(const PF_FileHandle &f) {
     buffer_manager_ = f.buffer_manager_;
     header_changed_ = f.header_changed_;
     header_ = f.header_;
+    wal_handle = f.wal_handle;
   }
   return *this;
 }
@@ -58,7 +60,7 @@ Status PF_FileHandle::GetPage(PageNum num, Page &p) const{
   }
   s = buffer_manager_->GetPage(fd_, num, &page_buf);
   if (!s.ok()) return s;
-  if (((PF_PageHeader*)page_buf)->nextFree == -2) {
+  if (((PF_PageHeader*)page_buf)->nextFree == -2 || num == -1) {
      p.data = page_buf + sizeof(PF_PageHeader);
      p.num = num;
      return Status::OK();
@@ -74,14 +76,14 @@ Status PF_FileHandle::GetNextPage(PageNum current, Page &p, bool &eof) const {
   if (file_open_ == false) {
     return Status(ErrorCode::kPF, "file is not open.can not get next page");
   }
-  if (current == header_.num_pages) {
+  if (current == header_->num_pages) {
     eof = true;
     return Status::OK();
   }
   if (!IsValidPageNum(current)) {
     return Status(ErrorCode::kPF, "page num is invalid");
   }
-  for (PageNum i = current; i < header_.num_pages; i++) {
+  for (PageNum i = current; i < header_->num_pages; i++) {
     s = buffer_manager_->GetPage(fd_, i, &page_buf); if (!s.ok()) return s;
     if (((PF_PageHeader*) page_buf)->nextFree == -2) {
       p.data = page_buf + sizeof(PF_PageHeader);
@@ -102,18 +104,19 @@ Status PF_FileHandle::AllocatePage(Page &p) {
   if (file_open_ == false) {
     return Status(ErrorCode::kPF, "file is not open.can not allocate page");
   }
-  if (header_.first_free != -1) {
-    num = header_.first_free;
+  if (header_->first_free != -1) {
+    num = header_->first_free;
     s = buffer_manager_->GetPage(fd_, num, &buf);
     if (!s.ok()) return s;
-    header_.first_free = ((PF_PageHeader*)buf)->nextFree;
+    header_->first_free = ((PF_PageHeader*)buf)->nextFree;
   } else {
-    num = header_.num_pages;
+    num = header_->num_pages;
     s = buffer_manager_->AllocatePage(fd_, num, &buf);
     if (!s.ok()) return s;
-    header_.num_pages++;
+    header_->num_pages++;
   }
   header_changed_ = true;
+  buffer_manager_->MarkDirty(fd_, -1);
   memset(buf, 0, kPageSize);
   ((PF_PageHeader*)buf)->nextFree = -2;
   s = buffer_manager_->MarkDirty(fd_, num);
@@ -138,9 +141,10 @@ Status PF_FileHandle::DisposePage(PageNum num) {
     if (!s.ok()) return s;
     return Status(ErrorCode::kPF, "page is already free.can not dispose");
   }
-  ((PF_PageHeader*)buf)->nextFree = header_.first_free;
-  header_.first_free = num;
+  ((PF_PageHeader*)buf)->nextFree = header_->first_free;
+  header_->first_free = num;
   header_changed_ = true;
+  buffer_manager_->MarkDirty(fd_, -1);
   s = buffer_manager_->MarkDirty(fd_, num);
   if (!s.ok()) return s;
   s = buffer_manager_->UnpinPage(fd_, num);
@@ -172,32 +176,23 @@ Status PF_FileHandle::FlushPages() {
   if (file_open_ == false) {
      return Status(ErrorCode::kPF, "file is not open.can not flushpage");
   }
-  if (header_changed_ == true) {
-    if (lseek(fd_, 0, SEEK_SET) < 0) {
-      return Status(ErrorCode::kPF, "lseek failed when writing header");
-    }
-    int num_bytes = write(fd_, (char *)&header_,sizeof(FileHdr));
-    if (num_bytes != sizeof(FileHdr)) {
-      return Status(ErrorCode::kPF, "write header failed");
-    }
-    header_changed_  = false;
-  }
+  buffer_manager_->UnpinPage(fd_, -1);
+//  if (header_changed_ == true) {
+//    if (lseek(fd_, 0, SEEK_SET) < 0) {
+//      return Status(ErrorCode::kPF, "lseek failed when writing header");
+//    }
+//    int num_bytes = write(fd_, (char *)&header_,sizeof(FileHdr));
+//    if (num_bytes != sizeof(FileHdr)) {
+//      return Status(ErrorCode::kPF, "write header failed");
+//    }
+//    header_changed_  = false;
+//  }
   return buffer_manager_->FlushPages(fd_);
 }
 
 Status PF_FileHandle::ForcePages(PageNum num) {
   if (file_open_ == false) {
      return Status(ErrorCode::kPF, "file is not open.can not flushpage");
-  }
-  if (header_changed_ == true) {
-    if (lseek(fd_, 0, SEEK_SET) < 0) {
-      return Status(ErrorCode::kPF, "lseek failed when writing header");
-    }
-    int num_bytes = write(fd_, (char *)&header_,sizeof(FileHdr));
-    if (num_bytes != sizeof(FileHdr)) {
-      return Status(ErrorCode::kPF, "write header failed");
-    }
-    header_changed_  = false;
   }
   return buffer_manager_->ForcePage(fd_, num);
 }

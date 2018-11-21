@@ -12,6 +12,8 @@ void yyerror(const char *);
 #define yywrap() 1
 #define YY_SKIP_YYWRAP 1
 
+#include <assert.h>
+
 namespace toydb {
 
 typedef int PageNum;

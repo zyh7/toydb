@@ -88,7 +88,6 @@ Status SM_Manager::CreateTable(const char *rel_name, int attr_count,
   if (attr_names.size() != (unsigned int) attr_count) {
     return Status(ErrorCode::kSM, "can not create table. attr name is duplicated");
   }
-
   s = rmm_.CreateFile(rel_name, record_size); if (!s.ok()) return s;
   int offset = 0;
   for (int i = 0; i < attr_count; i++) {
@@ -98,6 +97,7 @@ Status SM_Manager::CreateTable(const char *rel_name, int attr_count,
   s = InsertIntoRelCat(rel_name, attr_count, record_size); if (!s.ok()) return s;
   s = attr_cat_fh_.ForcePages(); if (!s.ok()) return s;
   s = rel_cat_fh_.ForcePages(); if (!s.ok()) return s;
+
   return Status::OK();
 }
 
@@ -218,6 +218,23 @@ Status SM_Manager::InsertIntoRelCat(const char *rel_name,int attr_count, int rec
   entry.indexCount = 0;
   entry.indexCurrNum = 0;
   entry.numTuples = 0;
+
+  // get rel id   id  starting from 1
+  int max_rel_id = 0;
+  RM_FileScan fs;
+  Record rec;
+  RelEntry *rel_entry;
+  s = fs.OpenScan(rel_cat_fh_, STRING, kMaxRelationName + 1, 0, NE_OP, (void *)rel_name);
+  if (!s.ok()) return s;
+  bool eof;
+  s = fs.GetNextRec(rec, eof); if (!s.ok()) return s;
+  while(!eof) {
+    rel_entry = (RelEntry *) rec.data_;
+    int id = rel_entry->id;
+    max_rel_id = id > max_rel_id ? id : max_rel_id;
+  }
+  entry.id = max_rel_id;
+
   s = rel_cat_fh_.InsertRec((char *)&entry, rid); if (!s.ok()) return s;
   return Status::OK();
 }
@@ -230,6 +247,7 @@ Status SM_Manager::GetRelEntry(const char *rel_name, Record &rec, RelEntry *&rel
   bool eof;
   s = fs.GetNextRec(rec,eof); if (!s.ok()) return s;
   if (eof) {
+    s = fs.CloseScan(); if (!s.ok()) return s;
     return Status(ErrorCode::kSM, "no such relation");
   }
   s = fs.CloseScan(); if (!s.ok()) return s;

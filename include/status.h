@@ -19,7 +19,8 @@ enum class ErrorCode {
   kRM = 2,
   kIX = 3,
   kSM = 4,
-  kQL = 5
+  kQL = 5,
+  kWL = 6
 };
 
 struct ErrorInfo {

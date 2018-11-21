@@ -13,6 +13,8 @@
 
 namespace toydb{
 
+class WAL_FileHandle;
+
 class BufferManager;
 
 struct Page {
@@ -44,13 +46,16 @@ class PF_FileHandle{
   Status FlushPages();
   Status ForcePages(PageNum num=-1);
 
+  Status SetWalMode(const WAL_FileHandle &WAL_FileHandle);
+
  private:
   friend class PF_Manager;
   int fd_;
   int file_open_;
-  FileHdr header_;
+  FileHdr *header_;
   int header_changed_;
   BufferManager *buffer_manager_;
+  WAL_FileHandle *wal_handle;
 
   int IsValidPageNum(PageNum n) const;
 };
