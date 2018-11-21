@@ -27,12 +27,15 @@ QL_NodeRel::~QL_NodeRel() {
 
 Status QL_NodeRel::OpenIt() {
   Status s;
+  std::string file_name = std::to_string(r_entry_->id);
+  file_name += "-0";
+  std::string rel_id = std::to_string(r_entry_->id);
   if (use_index_) {
-    s = qlm_.ixm_.OpenIndex(r_entry_->relName, index_no_, ih_); if (!s.ok()) return s;
+    s = qlm_.ixm_.OpenIndex(rel_id.c_str(), index_no_, ih_); if (!s.ok()) return s;
     s = is_.OpenScan(ih_, EQ_OP, value_); if (!s.ok()) return s;
-    s = qlm_.rmm_.OpenFile(r_entry_->relName, fh_); if (!s.ok()) return s;
+    s = qlm_.rmm_.OpenFile(file_name.c_str(), fh_); if (!s.ok()) return s;
   } else {
-    s = qlm_.rmm_.OpenFile(r_entry_->relName, fh_); if (!s.ok()) return s;
+    s = qlm_.rmm_.OpenFile(file_name.c_str(), fh_); if (!s.ok()) return s;
     s = fs_.OpenScan(fh_, INT, 4, 0, NO_OP, nullptr); if (!s.ok()) return s;
   }
   return Status::OK();
@@ -53,9 +56,12 @@ Status QL_NodeRel::CloseIt() {
 
 Status QL_NodeRel::OpenIt(void *value) {
   Status s;
-  s = qlm_.ixm_.OpenIndex(r_entry_->relName, index_no_, ih_); if (!s.ok()) return s;
+  std::string file_name = std::to_string(r_entry_->id);
+  file_name += "-0";
+  std::string rel_id = std::to_string(r_entry_->id);
+  s = qlm_.ixm_.OpenIndex(rel_id.c_str(), index_no_, ih_); if (!s.ok()) return s;
   s = is_.OpenScan(ih_, EQ_OP, value_); if (!s.ok()) return s;
-  s = qlm_.rmm_.OpenFile(r_entry_->relName, fh_); if (!s.ok()) return s;
+  s = qlm_.rmm_.OpenFile(file_name.c_str(), fh_); if (!s.ok()) return s;
   return Status::OK();
 }
 

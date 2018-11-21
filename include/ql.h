@@ -90,7 +90,7 @@ class QL_Manager {
   Status SetUpOneRelation(const char *rel_name);
   Status CheckSeletAttrs(int num_attrs, const RelAttr attrs[]);
   Status CheckConditions(int num_conds, const Condition conditions[]);
-  Status InsertIntoRelation(const char *rel_name, int tuple_len, int num_values,
+  Status InsertIntoRelation(int rel_id, int tuple_len, int num_values,
                             const Value values[]);
   Status RunUpdate(QL_Node *top_node, const RelAttr &upd_attr, const int is_value,
                    const RelAttr &r_attr, const Value &r_value);

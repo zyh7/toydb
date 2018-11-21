@@ -28,8 +28,8 @@ int main() {
 
   Status s;
 
-//  s = smm.CreateDb("testdb");
-//  if (!s.ok()) cout << s;
+  s = smm.CreateDb("testdb");
+  if (!s.ok()) cout << s;
 
 
   s = smm.OpenDb("testdb");

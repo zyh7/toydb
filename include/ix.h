@@ -162,10 +162,10 @@ class IX_Manager {
  public:
   IX_Manager(PF_Manager &pfm);
   ~IX_Manager();
-  Status CreateIndex(const char *file_name, int index_num, AttrType attr_type,
+  Status CreateIndex(const char *rel_id, int index_num, AttrType attr_type,
                      int attr_length);
-  Status DestroyIndex(const char *file_name, int index_num);
-  Status OpenIndex(const char *file_name, int index_num, IX_IndexHandle &ixh);
+  Status DestroyIndex(const char *rel_id, int index_num);
+  Status OpenIndex(const char *rel_id, int index_num, IX_IndexHandle &ixh);
   Status CloseIndex(IX_IndexHandle &ixh);
 
  private:

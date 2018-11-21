@@ -88,15 +88,20 @@ Status SM_Manager::CreateTable(const char *rel_name, int attr_count,
   if (attr_names.size() != (unsigned int) attr_count) {
     return Status(ErrorCode::kSM, "can not create table. attr name is duplicated");
   }
-  s = rmm_.CreateFile(rel_name, record_size); if (!s.ok()) return s;
+
   int offset = 0;
   for (int i = 0; i < attr_count; i++) {
     s = InsertIntoAttrCat(rel_name, attributes[i], offset, i); if (!s.ok()) return s;
     offset += attributes[i].attrLength;
   }
-  s = InsertIntoRelCat(rel_name, attr_count, record_size); if (!s.ok()) return s;
+  int id;
+  s = InsertIntoRelCat(rel_name, attr_count, record_size, id); if (!s.ok()) return s;
   s = attr_cat_fh_.ForcePages(); if (!s.ok()) return s;
   s = rel_cat_fh_.ForcePages(); if (!s.ok()) return s;
+
+  std::string file_name = std::to_string(id);
+  file_name += "-0";
+  s = rmm_.CreateFile(file_name.c_str(), record_size); if (!s.ok()) return s;
 
   return Status::OK();
 }
@@ -106,10 +111,12 @@ Status SM_Manager::DropTable(const char *rel_name) {
   if (strlen(rel_name) > kMaxRelationName) {
     return Status(ErrorCode::kSM, "cannot drop table. relation name is too long");
   }
-  s = rmm_.DeleteFile(rel_name); if (!s.ok()) return s;
   Record rel_rec;
   RelEntry *rel_entry;
   s = GetRelEntry(rel_name, rel_rec, rel_entry); if (!s.ok()) return s;
+  std::string file_name = std::to_string(rel_entry->id);
+  file_name += "-0";
+  s = rmm_.DeleteFile(file_name.c_str()); if (!s.ok()) return s;
   RM_FileScan fs;
   s = fs.OpenScan(attr_cat_fh_, STRING, kMaxAttrName + 1, 0, EQ_OP, (void *) rel_name);
   if (!s.ok()) return s;
@@ -141,14 +148,17 @@ Status SM_Manager::CreateIndex(const char *rel_name, const char *attr_name) {
   if (a_entry->indexNo != -1) {
     return Status(ErrorCode::kSM, "cannot create this index. it already exists");
   }
-  s = ixm_.CreateIndex(rel_name, r_entry->indexCurrNum, a_entry->attrType,
+  std::string rel_id = std::to_string(r_entry->id);
+  s = ixm_.CreateIndex(rel_id.c_str(), r_entry->indexCurrNum, a_entry->attrType,
                    a_entry->attrLength);
   if (!s.ok()) return s;
   IX_IndexHandle ixh;
   RM_FileHandle fh;
   RM_FileScan fs;
-  s = ixm_.OpenIndex(rel_name, r_entry->indexCurrNum, ixh); if (!s.ok()) return s;
-  s = rmm_.OpenFile(rel_name, fh); if (!s.ok()) return s;
+  s = ixm_.OpenIndex(rel_id.c_str(), r_entry->indexCurrNum, ixh); if (!s.ok()) return s;
+  std::string file_name = std::to_string(r_entry->id);
+  file_name += "-0";
+  s = rmm_.OpenFile(file_name.c_str(), fh); if (!s.ok()) return s;
   s = fs.OpenScan(fh, INT, 4, 0, NO_OP, NULL); if (!s.ok()) return s;
   while(1) {
     Record rec;
@@ -182,7 +192,8 @@ Status SM_Manager::DropIndex(const char *rel_name, const char *attr_name) {
   if (a_entry->indexNo == -1) {
     return Status(ErrorCode::kSM, "cannot drop this index. it does not exists");
   }
-  s = ixm_.DestroyIndex(rel_name, a_entry->indexNo);
+  std::string rel_id = std::to_string(r_entry->id);
+  s = ixm_.DestroyIndex(rel_id.c_str(), a_entry->indexNo);
   a_entry->indexNo = -1;
   r_entry->indexCount--;
   s = rel_cat_fh_.UpdateRec(rel_rec); if (!s.ok()) return s;
@@ -207,7 +218,7 @@ Status SM_Manager::InsertIntoAttrCat(const char *rel_name, AttrInfo &attr, int o
   return Status::OK();
 }
 
-Status SM_Manager::InsertIntoRelCat(const char *rel_name,int attr_count, int record_size) {
+Status SM_Manager::InsertIntoRelCat(const char *rel_name,int attr_count, int record_size, int &id) {
   Status s;
   RelEntry entry;
   RID rid;
@@ -216,7 +227,7 @@ Status SM_Manager::InsertIntoRelCat(const char *rel_name,int attr_count, int rec
   entry.tupleLength = record_size;
   entry.attrCount = attr_count;
   entry.indexCount = 0;
-  entry.indexCurrNum = 0;
+  entry.indexCurrNum = 1;
   entry.numTuples = 0;
 
   // get rel id   id  starting from 1
@@ -233,7 +244,7 @@ Status SM_Manager::InsertIntoRelCat(const char *rel_name,int attr_count, int rec
     int id = rel_entry->id;
     max_rel_id = id > max_rel_id ? id : max_rel_id;
   }
-  entry.id = max_rel_id;
+  id = entry.id = max_rel_id;
 
   s = rel_cat_fh_.InsertRec((char *)&entry, rid); if (!s.ok()) return s;
   return Status::OK();

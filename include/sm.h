@@ -80,7 +80,7 @@ class SM_Manager {
   RM_FileHandle attr_cat_fh_;
   bool isValidAttrType(const AttrInfo &attribute) const;
   Status InsertIntoAttrCat(const char *rel_name, AttrInfo &attr, int offset, int attr_num);
-  Status InsertIntoRelCat(const char *rel_name,int attr_count, int record_size);
+  Status InsertIntoRelCat(const char *rel_name,int attr_count, int record_size, int &id);
   Status GetRelEntry(const char *rel_name, Record &rec, RelEntry *&rel_entry);
   Status GetAttrEntry(const char *rel_name, const char *attr_name, Record &attr_rec,
                   AttrEntry *&a_entry);

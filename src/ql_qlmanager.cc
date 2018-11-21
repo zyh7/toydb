@@ -166,7 +166,7 @@ Status QL_Manager::Insert(const char *rel_name, int num_values,
       return Status(ErrorCode::kQL, "inserted record format error");
     }
   }
-  s = InsertIntoRelation(rel_name, rel_entry_->tupleLength, num_values, values);
+  s = InsertIntoRelation(rel_entry_->id, rel_entry_->tupleLength, num_values, values);
   delete rel_entry_;
   delete[] attr_entry_;
   return Status::OK();
@@ -205,14 +205,17 @@ Status QL_Manager::RunDelete(QL_Node *top_node) {
   top_node->GetAttrList(attr_list, num_attrs);
 
   RM_FileHandle fh;
-  s = rmm_.OpenFile(rel_entry_->relName, fh); if (!s.ok()) return s;
+  std::string file_name = std::to_string(rel_entry_->id);
+  file_name += "-0";
+  s = rmm_.OpenFile(file_name.c_str(), fh); if (!s.ok()) return s;
   s = top_node->OpenIt();
 
   IX_IndexHandle *ixh = new IX_IndexHandle[num_attrs];
   // open index handle
   for (int i = 0; i < num_attrs; i++) {
     if (attr_entry_[i].indexNo != -1) {
-      s = ixm_.OpenIndex(rel_entry_->relName, attr_entry_[i].indexNo, ixh[i]);
+      std::string rel_id = std::to_string(rel_entry_->id);
+      s = ixm_.OpenIndex(rel_id.c_str(), attr_entry_[i].indexNo, ixh[i]);
       if (!s.ok()) return s;
     }
   }
@@ -282,7 +285,9 @@ Status QL_Manager::RunUpdate(QL_Node *top_node, const RelAttr &upd_attr,
   top_node->GetAttrList(attr_list, num_attr);
 
   RM_FileHandle fh;
-  s = rmm_.OpenFile(rel_entry_->relName, fh); if (!s.ok()) return s;
+  std::string file_name = std::to_string(rel_entry_->id);
+  file_name += "-0";
+  s = rmm_.OpenFile(file_name.c_str(), fh); if (!s.ok()) return s;
   int slot1, slot2;
   s = GetAttrEntryPos(upd_attr, slot1); if (!s.ok()) return s;
   if (!is_value) {
@@ -291,7 +296,8 @@ Status QL_Manager::RunUpdate(QL_Node *top_node, const RelAttr &upd_attr,
 
   IX_IndexHandle ih;
   if (attr_entry_[slot1].indexNo != -1) {
-    s = ixm_.OpenIndex(rel_entry_->relName, attr_entry_[slot1].indexNo, ih);
+    std::string rel_id = std::to_string(rel_entry_->id);
+    s = ixm_.OpenIndex(rel_id.c_str(), attr_entry_[slot1].indexNo, ih);
     if (!s.ok()) return s;
   }
 
@@ -360,11 +366,13 @@ Status QL_Manager::CleanUpNodes(QL_Node *top_node) {
    return Status::OK();
 }
 
-Status QL_Manager::InsertIntoRelation(const char *rel_name, int tuple_len,
+Status QL_Manager::InsertIntoRelation(int rel_id, int tuple_len,
                                       int num_values, const Value values[]) {
   Status s;
   RM_FileHandle fh;
-  s = rmm_.OpenFile(rel_name, fh); if (!s.ok()) return s;
+  std::string file_name = std::to_string(rel_id);
+  file_name += "-0";
+  s = rmm_.OpenFile(file_name.c_str(), fh); if (!s.ok()) return s;
   char *buf = (char *)malloc(tuple_len);
   for (int i = 0; i < num_values; i++) {
     memcpy(buf + attr_entry_[i].offset, values[i].data,
@@ -376,7 +384,8 @@ Status QL_Manager::InsertIntoRelation(const char *rel_name, int tuple_len,
     AttrEntry *a_entry = attr_entry_ + i;
     if (a_entry->indexNo != -1) {
       IX_IndexHandle ih;
-      s = ixm_.OpenIndex(rel_name, a_entry->indexNo, ih); if (!s.ok()) return s;
+      std::string rel_id_str = std::to_string(rel_id);
+      s = ixm_.OpenIndex(rel_id_str.c_str(), a_entry->indexNo, ih); if (!s.ok()) return s;
       s = ih.InsertEntry(buf, rid); if (!s.ok()) return s;
       s = ixm_.CloseIndex(ih); if (!s.ok()) return s;
     }

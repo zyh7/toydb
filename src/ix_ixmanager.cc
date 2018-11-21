@@ -58,17 +58,17 @@ Status IX_Manager::GetIndexFileName(const char *file_name, int index_num,
     return Status(ErrorCode::kIX, "index num is negative");
   }
   ix_name = std::string(file_name);
-  ix_name.append(".");
+  ix_name.append("-");
   ix_name.append(std::to_string(index_num));
   return Status::OK();
 }
 
-Status IX_Manager::CreateIndex(const char *file_name, int index_num,
+Status IX_Manager::CreateIndex(const char *rel_id, int index_num,
                                AttrType attr_type, int attr_length) {
   // create file
   Status s;
   std::string index_file_name;
-  s = GetIndexFileName(file_name, index_num, index_file_name);
+  s = GetIndexFileName(rel_id, index_num, index_file_name);
   s = pfm_.CreateFile(index_file_name.c_str()); if (!s.ok()) return s;
 
   // create index file header page and root page
@@ -126,11 +126,11 @@ Status IX_Manager::DestroyIndex(const char *file_name, int index_num) {
   return Status::OK();
 }
 
-Status IX_Manager::OpenIndex(const char *file_name, int index_num,
+Status IX_Manager::OpenIndex(const char *rel_id, int index_num,
                              IX_IndexHandle &ixh) {
   Status s;
   std::string index_file_name;
-  s = GetIndexFileName(file_name, index_num, index_file_name); if (!s.ok()) return s;
+  s = GetIndexFileName(rel_id, index_num, index_file_name); if (!s.ok()) return s;
   PF_FileHandle pfh;
   Page p;
   IX_FileHeader *header;
