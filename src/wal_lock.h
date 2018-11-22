@@ -2,6 +2,7 @@
 #define TOYDB_SRC_WAL_H_
 
 #include "wal.h"
+#include "wal_internal.h"
 
 namespace toydb {
 

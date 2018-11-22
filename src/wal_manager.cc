@@ -6,7 +6,8 @@
 #include <string>
 #include <assert.h>
 #include <sys/mman.h>
-#include "../include/wal.h"
+#include "wal.h"
+#include "wal_internal.h"
 
 namespace toydb{
 

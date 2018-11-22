@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "wal.h"
 #include "wal_lock.h"
+#include "wal_internal.h"
 #include "pf_internal.h"
 
 namespace toydb {

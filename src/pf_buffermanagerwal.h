@@ -1,9 +1,10 @@
 #ifndef TOYDB_SRC_PF_BUFFERMANAGERWAL_H_
 #define TOYDB_SRC_PF_BUFFERMANAGERWAL_H_
 
-#include "../include/wal.h"
+#include "wal.h"
 #include "pf_hashtablewal.h"
 #include "toydb.h"
+#include "wal_internal.h"
 
 namespace toydb {
 

@@ -2,7 +2,8 @@
 #define TOYDB_SRC_PF_HASHTABLEWAL_H_
 
 #include <pf.h>
-#include "../include/wal.h"
+#include "wal.h"
+#include "wal_internal.h"
 
 namespace toydb {
 
