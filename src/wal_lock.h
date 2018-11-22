@@ -26,7 +26,7 @@ int lock_write(int fd);
 int unlock_write(int fd);
 int lock_read(int fd);
 int unlock_read(int fd);
-int is_read_locked(int fd);
+bool is_read_locked(int fd);
 //int lock_frame(int fd);
 //int unlock_frame(int fd);
 

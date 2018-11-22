@@ -1,4 +1,3 @@
-#include "wal.h"
 #include "wal_lock.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -7,17 +6,9 @@
 #include <string>
 #include <assert.h>
 #include <sys/mman.h>
+#include "../include/wal.h"
 
 namespace toydb{
-WAL_Manager::WAL_Manager(){
-
-}
-
-WAL_Manager::~WAL_Manager(){
-
-}
-
-
 
 int WAL_Manager::CreateWALFile(const char *db_name){
   std::string name(db_name);
@@ -30,12 +21,12 @@ int WAL_Manager::CreateWALFile(const char *db_name){
   assert(fd > 0);
   WALFileHeader header;
   header.tail_frame = header.tail_frame1 = 1;
-  header.written_tail_frame = header.written_tail_frame = 1;
+  header.written_tail_frame = header.written_tail_frame1 = 1;
   int num_bytes = write(fd, (char *) &header, sizeof(WALFileHeader));
   assert(num_bytes == sizeof(WALFileHeader));
   int rt = close(fd);
   assert(rt == 0);
-  return Status::OK();
+  return 0;
 }
 
 int WAL_Manager::CreateLockFile(const char *db_name){
@@ -45,7 +36,7 @@ int WAL_Manager::CreateLockFile(const char *db_name){
   if (fd > 0) {
     return -1;
   }
-  int fd = open(name.c_str(), O_CREAT | O_RDWR, 00600);
+  fd = open(name.c_str(), O_CREAT | O_RDWR, 00600);
   assert(fd > 0);
   LockFile header;
   memset(&header, 0, sizeof(LockFile));
@@ -55,7 +46,7 @@ int WAL_Manager::CreateLockFile(const char *db_name){
   assert(num_bytes == sizeof(LockFile));
   int rt = close(fd);
   assert(rt == 0);
-  return Status::OK();
+  return 0;
 }
 
 int WAL_Manager::CreateWALIndex(const char *db_name){
@@ -104,10 +95,17 @@ int WAL_Manager::OpenDB(const char *db_name, WAL_FileHandle &wh) {
     WALFileHeader wal_header;
     int num_bytes = read(fd1, &wal_header, sizeof(WALFileHeader));
     assert(num_bytes == sizeof(WALFileHeader));
+    if (ValidateWalHeader(wal_header)) {
+      num_bytes = write(fd1, &wal_header, sizeof(WALFileHeader));
+      assert(num_bytes == sizeof(WALFileHeader));
+      std::cout << "wal header correct" << std::endl;
+    }
+
     if (wal_header.tail_frame != tail
         || wal_header.written_tail_frame != head) {
-      int rt = wh.WriteBackAll();
+      int rt = wh.WriteBack(wal_header.written_tail_frame, wal_header.tail_frame);
       assert(rt == 0);
+
     }
   }
 
@@ -150,6 +148,19 @@ int WAL_Manager::OpenDB(const char *db_name, WAL_FileHandle &wh) {
   }
 
   unlock_door(fd2);
+  return 0;
+}
+
+int WAL_Manager::ValidateWalHeader(WALFileHeader &header) {
+  if (header.tail_frame != header.tail_frame1
+      && header.written_tail_frame != header.written_tail_frame1) {
+    std::cout << "wal header corrupt" << std::endl;
+    header.tail_frame = header.tail_frame1 = std::max(header.tail_frame,
+                                                      header.tail_frame1);
+    header.written_tail_frame = header.written_tail_frame1 = std::max(
+        header.written_tail_frame, header.written_tail_frame1);
+    return -1;
+  }
   return 0;
 }
 

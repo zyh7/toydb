@@ -3,11 +3,10 @@
 
 #include "toydb.h"
 #include "status.h"
-#include "pf_internal.h"
-#include "wal_lock.h"
 
 namespace toydb{
 
+class LockFile;
 
 static const int kNumEntryPerTable = 512;
 static const int kNumSlotPerTable = 2 * kNumEntryPerTable;
@@ -28,10 +27,32 @@ struct FrameEntry{
   PageNum page_num;
 };
 
-struct FrameInfo{
+struct PageInfo{
   int rel_id;
   int type;
   PageNum page_num;
+
+  PageInfo() {}
+
+  ~PageInfo() {}
+
+  PageInfo(int rel_id, int type, PageNum page_num)
+      : rel_id(rel_id),
+        type(type),
+        page_num(page_num) {
+  }
+
+  bool operator==(const PageInfo &page_info) {
+    return (rel_id = page_info.rel_id && type == page_info.type
+        && page_num == page_info.page_num);
+  }
+
+  PageInfo& operator=(const PageInfo &page_info) {
+    rel_id = page_info.rel_id;
+    type = page_info.type;
+    page_num = page_info.page_num;
+    return *this;
+  }
 };
 
 struct FileEntry {
@@ -39,11 +60,9 @@ struct FileEntry {
   int type;
 };
 
-
-
 struct Frame {
   FrameEntry entry;
-  char page[kPageSize];
+  char page[4096];
 };
 
 struct FrameHashTable{
@@ -52,8 +71,10 @@ struct FrameHashTable{
 
 class WAL_FileHandle{
  public:
-  int LoadPage(int rel_id, PageNum page_num, int type, char *dest);
-  int WritePage(int rel_id, PageNum page_num, int type, char *source);
+  WAL_FileHandle();
+  ~WAL_FileHandle();
+  int LoadPage(int rel_id, int type, PageNum page_num, char *dest);
+  int WritePage(int rel_id, int type, PageNum page_num, char *source);
   int GetWriteLock();
   int Commit();
   int Rollback();
@@ -80,8 +101,8 @@ class WAL_FileHandle{
 
 class WAL_Manager{
  public:
-  WAL_Manager();
-  ~WAL_Manager();
+  WAL_Manager() {};
+  ~WAL_Manager() {};
 
   int CreateWALFile(const char *db_name);
   int CreateLockFile(const char *db_name);
@@ -89,11 +110,13 @@ class WAL_Manager{
   int DeleteFile(const char *fname);
   int OpenDB(const char *db_name, WAL_FileHandle &wh);
   int CloseDB(WAL_FileHandle &wh);
-
+private:
+  int ValidateWalHeader(WALFileHeader &header);
   // no copying allowed
   WAL_Manager(const WAL_Manager &w);
   WAL_Manager& operator=(const WAL_Manager &w);
 };
+
 
 }
 

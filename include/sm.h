@@ -19,6 +19,8 @@
 
 namespace toydb {
 
+class WAL_Manager;
+
 // Used by SM_Manager::CreateTable
 struct AttrInfo {
   char *attrName;           // Attribute name
@@ -58,7 +60,7 @@ struct DataAttrInfo {
 class SM_Manager {
   friend class QL_Manager;
  public:
-  SM_Manager(IX_Manager &ixm, RM_Manager &rmm);
+  SM_Manager(IX_Manager &ixm, RM_Manager &rmm, WAL_Manager &wlm);
   ~SM_Manager();
   Status CreateDb(const char *db_name);
   Status OpenDb(const char *db_name);
@@ -75,7 +77,8 @@ class SM_Manager {
  private:
   IX_Manager &ixm_;
   RM_Manager &rmm_;
-//  WAL_Manager &wlm_;
+  WAL_Manager &wlm_;
+
   RM_FileHandle rel_cat_fh_;
   RM_FileHandle attr_cat_fh_;
   bool isValidAttrType(const AttrInfo &attribute) const;

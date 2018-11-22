@@ -1,4 +1,3 @@
-#include "wal.h"
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -8,14 +7,27 @@
 #include <limits.h>
 #include <algorithm>
 #include <assert.h>
+#include "wal.h"
+#include "wal_lock.h"
+#include "pf_internal.h"
 
 namespace toydb {
+
+bool operator<(FileEntry const& left, FileEntry const& right) {
+  if (left.rel_id < right.rel_id) return true;
+  if (left.rel_id > right.rel_id) return false;
+  return left.type < right.type;
+}
+
+WAL_FileHandle::WAL_FileHandle() {}
+
+WAL_FileHandle::~WAL_FileHandle() {}
 
 int WAL_FileHandle::Hash(int rel_id, PageNum page_num, int type) {
   return (rel_id * 92083 + page_num *69061 + type *29123) % kNumSlotPerTable;
 }
 
-int WAL_FileHandle::LoadPage(int rel_num, PageNum page_num, int type, char *dest) {
+int WAL_FileHandle::LoadPage(int rel_num,  int type, PageNum page_num, char *dest) {
   int frame = 0;
   for (int i = NumTables() - 1; i >=0; i--) {
     FrameHashTable *table = table_list_ + i;
@@ -23,7 +35,7 @@ int WAL_FileHandle::LoadPage(int rel_num, PageNum page_num, int type, char *dest
     if (frame != 0) break;
   }
   if (frame != 0) {
-    pread(fd_wal_, dest, kPageSize, sizeof(WALFileHeader) + sizeof(Frame) * (frame - 1) + sizeof(FrameInfo));
+    pread(fd_wal_, dest, kPageSize, sizeof(WALFileHeader) + sizeof(Frame) * (frame - 1) + sizeof(FrameEntry));
     return 0;
   } else {
     return -1;
@@ -36,14 +48,14 @@ int WAL_FileHandle::GetWriteLock() {
    return lock_write(fd_lock_);
 }
 
-int WAL_FileHandle::WritePage(int rel_id, PageNum page_num, int type, char *source) {
-  FrameInfo entry;
+int WAL_FileHandle::WritePage(int rel_id,  int type, PageNum page_num,char *source) {
+  FrameEntry entry;
   entry.rel_id = rel_id;
   entry.type = type;
   entry.page_num = page_num;
   int offset  = sizeof(WALFileHeader) + sizeof(Frame) * (tail_frame_ - 1);
-  pwrite(fd_wal_, &entry, sizeof(FrameInfo), offset);
-  pwrite(fd_wal_, source, kPageSize, offset + sizeof(FrameInfo));
+  pwrite(fd_wal_, &entry, sizeof(FrameEntry), offset);
+  pwrite(fd_wal_, source, kPageSize, offset + sizeof(FrameEntry));
   tail_frame_++;
   if ((tail_frame_ - 1) % kNumEntryPerTable == 0) {  // current table is full
     munmap((void *)table_list_, sizeof(FrameHashTable) * NumTables());
@@ -58,7 +70,7 @@ int WAL_FileHandle::WritePage(int rel_id, PageNum page_num, int type, char *sour
   }
   int slot = Hash(rel_id, page_num, type);
   while(1) {
-    FrameEntry *entry = (table_list_ + NumTables() - 1)->entrys[slot];
+    FrameEntry *entry = &((table_list_ + NumTables() - 1)->entrys[slot]);
     if (entry->rel_id == 0) {
       entry->rel_id = rel_id;
       entry->page_num = page_num;
@@ -75,7 +87,7 @@ int WAL_FileHandle::Find(FrameHashTable *table, int rel_id, PageNum page_num, in
   int slot = Hash(rel_id, page_num, type);
   int frame = 0;
   while(1) {
-    FrameEntry *entry = table->entrys[slot];
+    FrameEntry *entry = &(table->entrys[slot]);
     if (entry->rel_id == rel_id && entry->type == type && entry->page_num == page_num) {
       frame = entry->frame_num;
     } else if (entry->frame_num > tail_frame_ || entry->rel_id == 0) {
@@ -100,15 +112,15 @@ int WAL_FileHandle::WriteBack(int head_frame, int tail_frame) {
   std::map<FileEntry, int> map_fd;
   Frame *frame = new Frame();
   for (int i = head_frame; i < tail_frame; i++) {
-    pread(fd_wal_, (void *) frame, sizeof(Frame), sizeof(FrameInfo) + sizeof(Frame) * (i - 1));
+    pread(fd_wal_, (void *) frame, sizeof(Frame), sizeof(WALFileHeader) + sizeof(Frame) * (i - 1));
     FileEntry file_entry;
     file_entry.rel_id = frame->entry.rel_id;
     file_entry.type = frame->entry.type;
     auto it = map_fd.find(file_entry);
     int fd;
     if (it == map_fd.end()) {
-      std::string str1(file_entry.rel_id);
-      std::string str2(file_entry.type);
+      std::string str1 = std::to_string(file_entry.rel_id);
+      std::string str2 = std::to_string(file_entry.type);
       std::string name = str1 + "." + str2;
       fd = open(name.c_str(), O_RDWR, 00600);
       map_fd[file_entry] = fd;
@@ -121,7 +133,9 @@ int WAL_FileHandle::WriteBack(int head_frame, int tail_frame) {
   while(it != map_fd.end()) {
     int fd = it->second;
     fsync(fd);
+    it++;
   }
+  return 0;
 }
 
 int WAL_FileHandle::Commit() {
@@ -133,7 +147,7 @@ int WAL_FileHandle::Commit() {
       lock_->reader_frame[i] = 0;
       erase = true;
     } else if (lock_->reader_frame[i] != 0){
-      min = min(min, lock_->reader_frame[i]);
+      min = std::min(min, lock_->reader_frame[i]);
     }
   }
   assert(erase);
@@ -164,13 +178,14 @@ int WAL_FileHandle::Commit() {
     unlock_door(fd_lock_);          // no need to lock door
     WriteBack(lock_->written_tail_frame, min);
     header.written_tail_frame = header.written_tail_frame1 = min;
-    header.tail_frame = header.tail_frame = tail_frame_;
+    header.tail_frame = header.tail_frame1 = tail_frame_;
     pwrite(fd_wal_, &header, sizeof(WALFileHeader), 0);
     fsync(fd_wal_);  // ensure commit;
     lock_->tail_frame = tail_frame_;
     lock_->written_tail_frame = min;
   }
   unlock_write(fd_lock_);
+  return 0;
 }
 
 int WAL_FileHandle::Rollback() {
@@ -179,8 +194,10 @@ int WAL_FileHandle::Rollback() {
   for (int i = 0; i < kMaxReaders; i++) {
     if(lock_->reader_frame[i] == head_frame_) {
       lock_->reader_frame[i] = 0;
+      erase = true;
     }
   }
+  assert(erase);
   unlock_read(fd_lock_);
   unlock_door(fd_lock_);
   return 0;

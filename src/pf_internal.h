@@ -13,6 +13,7 @@ namespace toydb {
 static const int kBufferSize = 40;
 static const int kPageSize = 4096;
 static const int kNumBuckets = 20;
+static const int kNumBucketsWal = 20;
 static const int kFileHeaderSize = 4096;
 
 struct PF_PageHeader {

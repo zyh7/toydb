@@ -7,20 +7,24 @@
 
 #include "pf.h"
 #include "pf_buffermanager.h"
+#include "pf_buffermanagerwal.h"
 #include "pf_internal.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
 namespace toydb {
 
 PF_Manager::PF_Manager(){
   buffer_manager_ = new BufferManager(kBufferSize);
+  buffer_manager_wal_ = new BufferManagerWal(kBufferSize);
 }
 
 PF_Manager::~PF_Manager(){
   delete buffer_manager_;
+  delete buffer_manager_wal_;
 }
 
 Status PF_Manager::CreateFile(const char *fname) {
@@ -62,6 +66,16 @@ Status PF_Manager::OpenFile(const char *fname,PF_FileHandle &fh){
   fh.fd_ = fd;
   fh.file_open_ = 1;
   fh.buffer_manager_ = buffer_manager_;
+  if (strcmp(fname,"relcat") || strcmp(fname, "attrcat")) {
+    fh.use_wal_ = true;
+    fh.buffer_manager_wal_ = buffer_manager_wal_;
+    sscanf(fname, "%d-%d", &fh.rel_id_, &fh.type_);
+  } else {
+    fh.use_wal_ = false;
+    fh.buffer_manager_wal_ = nullptr;
+    fh.rel_id_ = -1;
+    fh.type_ = -1;
+  }
   Page p;
   s = fh.GetPage(-1, p); if (!s.ok()) return s;
   fh.header_ = (FileHdr *)(p.data - sizeof(PF_PageHeader));

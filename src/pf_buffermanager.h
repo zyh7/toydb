@@ -12,7 +12,6 @@
 #include "toydb.h"
 #include "pf_hashtable.h"
 
-
 namespace toydb {
 struct BufPageDesc {
   char *data;

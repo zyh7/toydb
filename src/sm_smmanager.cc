@@ -15,10 +15,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "wal.h"
+
 
 namespace toydb {
 
-SM_Manager::SM_Manager(IX_Manager &ixm, RM_Manager &rmm) : ixm_(ixm), rmm_(rmm) {
+SM_Manager::SM_Manager(IX_Manager &ixm, RM_Manager &rmm, WAL_Manager &wlm) : ixm_(ixm), rmm_(rmm), wlm_(wlm) {
 
 }
 
@@ -39,6 +41,9 @@ Status SM_Manager::CreateDb(const char *db_name) {
   chdir(db_name);
   s = rmm_.CreateFile("relcat", sizeof(RelEntry)); if (!s.ok()) return s;
   s = rmm_.CreateFile("attrcat", sizeof(AttrEntry)); if (!s.ok()) return s;
+  wlm_.CreateWALFile(db_name);
+  wlm_.CreateLockFile(db_name);
+  wlm_.CreateWALIndex(db_name);
   chdir(buf);
   return Status::OK();
 }
