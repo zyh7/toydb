@@ -29,8 +29,11 @@ class BufferManagerWal {
   Status UnpinPage(int fd, PageInfo num);
   Status FlushPages(int fd);
   Status ForcePage(int fd, PageInfo num);
+  int Commit();
 
  private:
+  friend class WAL_Manager;
+  friend class PF_Manager;
   HashTableWal hash_table_;
   BufPageDescWal *buftable_;
   WAL_FileHandle wh_;

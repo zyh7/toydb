@@ -115,6 +115,8 @@ Status IX_Manager::CreateIndex(const char *rel_id, int index_num,
   s = pfh.MarkDirty(root_page.num); if (!s.ok()) return s;
   s = pfh.UnpinPage(root_page.num); if (!s.ok()) return s;
   s = pfm_.CloseFile(pfh); if (!s.ok()) return s;
+  int rt = pfm_.Commit();
+  assert(rt == 0);
   return Status::OK();
 }
 

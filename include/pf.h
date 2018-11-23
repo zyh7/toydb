@@ -17,6 +17,8 @@ class BufferManager;
 
 class BufferManagerWal;
 
+class WAL_FileHandle;
+
 struct Page {
   char *data;
   PageNum num;
@@ -45,6 +47,7 @@ class PF_FileHandle{
   Status UnpinPage(PageNum num) const;
   Status FlushPages();
   Status ForcePages(PageNum num=-1);
+  bool UseWal() { return use_wal_; }
 
 
  private:
@@ -55,6 +58,7 @@ class PF_FileHandle{
   int header_changed_;
   BufferManager *buffer_manager_;
   BufferManagerWal *buffer_manager_wal_;
+
 
   bool use_wal_;
   int rel_id_;
@@ -72,12 +76,14 @@ class PF_Manager{
   Status DeleteFile(const char *fname);
   Status OpenFile(const char *fname, PF_FileHandle &fh);
   Status CloseFile(PF_FileHandle &fh);
+  int Commit();
 
   // no copying allowed
   PF_Manager(const PF_Manager &p);
   PF_Manager& operator=(const PF_Manager &p);
 
  private:
+  friend class WAL_Manager;
   BufferManager *buffer_manager_;
   BufferManagerWal *buffer_manager_wal_;
 };

@@ -24,19 +24,21 @@ WAL_FileHandle::WAL_FileHandle() {}
 
 WAL_FileHandle::~WAL_FileHandle() {}
 
-int WAL_FileHandle::Hash(int rel_id, PageNum page_num, int type) {
-  return (rel_id * 92083 + page_num *69061 + type *29123) % kNumSlotPerTable;
+int WAL_FileHandle::Hash(int rel_id, int type, PageNum page_num) {
+  int num = (rel_id * 92083 + page_num *69061 + type *29123) % kNumSlotPerTable;
+  if (num < 0) num += kNumSlotPerTable;
+  return num;
 }
 
 int WAL_FileHandle::LoadPage(int rel_num,  int type, PageNum page_num, char *dest) {
   int frame = 0;
   for (int i = NumTables() - 1; i >=0; i--) {
     FrameHashTable *table = table_list_ + i;
-    int frame = Find(table,page_num, type, rel_num);
+    frame = Find(table, rel_num, type, page_num);
     if (frame != 0) break;
   }
   if (frame != 0) {
-    pread(fd_wal_, dest, kPageSize, sizeof(WALFileHeader) + sizeof(Frame) * (frame - 1) + sizeof(FrameEntry));
+    pread(fd_wal_, dest, kPageSize, sizeof(WALFileHeader) + sizeof(Frame) * (frame - 1) + sizeof(PageInfo));
     return 0;
   } else {
     return -1;
@@ -50,29 +52,32 @@ int WAL_FileHandle::GetWriteLock() {
 }
 
 int WAL_FileHandle::WritePage(int rel_id,  int type, PageNum page_num,char *source) {
-  FrameEntry entry;
-  entry.rel_id = rel_id;
-  entry.type = type;
-  entry.page_num = page_num;
+  PageInfo entry1;
+  entry1.rel_id = rel_id;
+  entry1.type = type;
+  entry1.page_num = page_num;
   int offset  = sizeof(WALFileHeader) + sizeof(Frame) * (tail_frame_ - 1);
-  pwrite(fd_wal_, &entry, sizeof(FrameEntry), offset);
-  pwrite(fd_wal_, source, kPageSize, offset + sizeof(FrameEntry));
-  tail_frame_++;
+  int rt1 = pwrite(fd_wal_, &entry1, sizeof(PageInfo), offset);
+  assert(rt1 == sizeof(PageInfo));
+  int rt2 = pwrite(fd_wal_, source, kPageSize, offset + sizeof(PageInfo));
+  assert(rt2 == kPageSize);
   if ((tail_frame_ - 1) % kNumEntryPerTable == 0) {  // current table is full
     munmap((void *)table_list_, sizeof(FrameHashTable) * NumTables());
     FrameHashTable *empty_table = new FrameHashTable();
-    memset(&empty_table, 0, sizeof(FrameHashTable));
-    pwrite(fd_hash_, &empty_table, sizeof(FrameHashTable), sizeof(FrameHashTable) * NumTables());
+    memset(empty_table, 0, sizeof(FrameHashTable));
+    int rt3 = pwrite(fd_hash_, empty_table, sizeof(FrameHashTable), sizeof(FrameHashTable) * NumTables());
+    assert(rt3 == sizeof(FrameHashTable));
     delete empty_table;
     tail_table_++;
     table_list_ = (FrameHashTable *) mmap(
-        nullptr, sizeof(FrameHashTable) * NumTables(), PROT_READ | PROT_EXEC,
+        nullptr, sizeof(FrameHashTable) * NumTables(), PROT_READ | PROT_WRITE,
         MAP_SHARED, fd_hash_, sizeof(FrameHashTable) * head_table_);
+    assert(table_list_ != (void *) -1);
   }
-  int slot = Hash(rel_id, page_num, type);
+  int slot = Hash(rel_id, type, page_num);
   while(1) {
     FrameEntry *entry = &((table_list_ + NumTables() - 1)->entrys[slot]);
-    if (entry->rel_id == 0) {
+    if (entry->frame_num == 0) {
       entry->rel_id = rel_id;
       entry->page_num = page_num;
       entry->type = type;
@@ -81,17 +86,18 @@ int WAL_FileHandle::WritePage(int rel_id,  int type, PageNum page_num,char *sour
     }
     slot = (slot + 1) % kNumSlotPerTable;
   }
+  tail_frame_++;
   return 0;
 }
 
-int WAL_FileHandle::Find(FrameHashTable *table, int rel_id, PageNum page_num, int type) {
-  int slot = Hash(rel_id, page_num, type);
+int WAL_FileHandle::Find(FrameHashTable *table, int rel_id,int type,PageNum page_num ) {
+  int slot = Hash(rel_id, type, page_num);
   int frame = 0;
   while(1) {
     FrameEntry *entry = &(table->entrys[slot]);
-    if (entry->rel_id == rel_id && entry->type == type && entry->page_num == page_num) {
+    if (entry->rel_id == rel_id && entry->type == type && entry->page_num == page_num && entry->frame_num != 0) {
       frame = entry->frame_num;
-    } else if (entry->frame_num > tail_frame_ || entry->rel_id == 0) {
+    } else if (entry->frame_num > tail_frame_ || entry->frame_num == 0) {
     // new frame entry is seen as empty;
       break;
     }
@@ -109,7 +115,7 @@ int WAL_FileHandle::NumTables() {
 }
 
 int WAL_FileHandle::WriteBack(int head_frame, int tail_frame) {
-  assert(head_frame < tail_frame);
+  assert(head_frame <= tail_frame);
   std::map<FileEntry, int> map_fd;
   Frame *frame = new Frame();
   for (int i = head_frame; i < tail_frame; i++) {
@@ -122,13 +128,13 @@ int WAL_FileHandle::WriteBack(int head_frame, int tail_frame) {
     if (it == map_fd.end()) {
       std::string str1 = std::to_string(file_entry.rel_id);
       std::string str2 = std::to_string(file_entry.type);
-      std::string name = str1 + "." + str2;
+      std::string name = str1 + "-" + str2;
       fd = open(name.c_str(), O_RDWR, 00600);
       map_fd[file_entry] = fd;
     } else {
       fd = it->second;
     }
-    pwrite(fd, &(frame->page), kPageSize, kPageSize * frame->entry.page_num);
+    pwrite(fd, &(frame->page), kPageSize, kPageSize * (frame->entry.page_num + 1));
   }
   auto it = map_fd.begin();
   while(it != map_fd.end()) {
@@ -140,6 +146,7 @@ int WAL_FileHandle::WriteBack(int head_frame, int tail_frame) {
 }
 
 int WAL_FileHandle::Commit() {
+  lock_->tail_frame = tail_frame_;
   lock_door(fd_lock_);
   bool erase = false;
   int min = INT_MAX;
@@ -170,10 +177,13 @@ int WAL_FileHandle::Commit() {
     ftruncate(fd_wal_, sizeof(WALFileHeader));
     lock_->tail_frame = 1;
     lock_->written_tail_frame = 1;
+
     ftruncate(fd_hash_, sizeof(FrameHashTable));
     FrameHashTable *empty = new FrameHashTable();
     memset(empty, 0, sizeof(FrameHashTable));
     pwrite(fd_hash_, (void *)empty, sizeof(FrameHashTable), 0);
+    head_table_ = tail_table_ = 0;
+    head_frame_ = tail_frame_ = 1;
     unlock_door(fd_lock_);
   } else {  // other reader exists, write back part
     unlock_door(fd_lock_);          // no need to lock door
@@ -191,14 +201,15 @@ int WAL_FileHandle::Commit() {
 
 int WAL_FileHandle::Rollback() {
   lock_door(fd_lock_);
-  bool erase = false;
-  for (int i = 0; i < kMaxReaders; i++) {
-    if(lock_->reader_frame[i] == head_frame_) {
-      lock_->reader_frame[i] = 0;
-      erase = true;
-    }
-  }
-  assert(erase);
+  tail_frame_ = initial_tail_frame_;
+//  bool erase = false;
+//  for (int i = 0; i < kMaxReaders; i++) {
+//    if(lock_->reader_frame[i] == head_frame_) {
+//      lock_->reader_frame[i] = 0;
+//      erase = true;
+//    }
+//  }
+//  assert(erase);
   unlock_read(fd_lock_);
   unlock_door(fd_lock_);
   return 0;

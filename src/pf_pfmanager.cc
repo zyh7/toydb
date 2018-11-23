@@ -66,7 +66,7 @@ Status PF_Manager::OpenFile(const char *fname,PF_FileHandle &fh){
   fh.fd_ = fd;
   fh.file_open_ = 1;
   fh.buffer_manager_ = buffer_manager_;
-  if (strcmp(fname,"relcat") || strcmp(fname, "attrcat")) {
+  if (strcmp(fname,"relcat") && strcmp(fname, "attrcat")) {
     fh.use_wal_ = true;
     fh.buffer_manager_wal_ = buffer_manager_wal_;
     sscanf(fname, "%d-%d", &fh.rel_id_, &fh.type_);
@@ -100,6 +100,10 @@ Status PF_Manager::CloseFile(PF_FileHandle &fh) {
   fh.file_open_ = false;
   fh.buffer_manager_ = nullptr;
   return Status::OK();
+}
+
+int PF_Manager::Commit() {
+  return buffer_manager_wal_->Commit();
 }
 
 }  // namespace toydb

@@ -8,6 +8,8 @@
 #include <sys/mman.h>
 #include "wal.h"
 #include "wal_internal.h"
+#include "pf.h"
+#include "pf_buffermanagerwal.h"
 
 namespace toydb{
 
@@ -64,6 +66,11 @@ int WAL_Manager::CreateWALIndex(const char *db_name){
   return 0;
 }
 
+int WAL_Manager::OpenDB(const char *db_name, PF_Manager &pfm) {
+  return OpenDB(db_name, pfm.buffer_manager_wal_->wh_);
+}
+
+
 int WAL_Manager::OpenDB(const char *db_name, WAL_FileHandle &wh) {
   std::string name(db_name);
   std::string wal_name = name + ".wal";
@@ -80,7 +87,7 @@ int WAL_Manager::OpenDB(const char *db_name, WAL_FileHandle &wh) {
   assert(fd2 > 0);
   wh.fd_lock_ = fd2;
   LockFile *lock = (LockFile *) mmap(nullptr, sizeof(LockFile),
-                              PROT_READ | PROT_WRITE | PROT_EXEC,
+                              PROT_READ | PROT_WRITE,
                                      MAP_SHARED, fd2, 0);
   wh.lock_ = lock;
 
@@ -129,15 +136,14 @@ int WAL_Manager::OpenDB(const char *db_name, WAL_FileHandle &wh) {
         wh.tail_table_ = (tail - 1) / kNumEntryPerTable + 1;
       }
       int num_tables = wh.tail_table_ - wh.tail_table_;
-      if (num_frames > 0) {
-        int fd3 = open(hash_name.c_str(), O_RDWR, 00600);
-        assert(fd3 > 0);
-        wh.fd_hash_ = fd3;
-        wh.table_list_ = (FrameHashTable *) mmap(
-            nullptr, sizeof(FrameHashTable) * num_tables,
-            PROT_READ | PROT_EXEC,
-            MAP_SHARED, fd3, sizeof(FrameHashTable) * wh.head_table_);
-      }
+      int fd3 = open(hash_name.c_str(), O_RDWR, 00600);
+      assert(fd3 > 0);
+      wh.fd_hash_ = fd3;
+      wh.table_list_ = (FrameHashTable *) mmap(
+          nullptr, sizeof(FrameHashTable) * num_tables,
+          PROT_READ | PROT_EXEC,
+          MAP_SHARED, fd3, sizeof(FrameHashTable) * wh.head_table_);
+
       break;
     }
   }

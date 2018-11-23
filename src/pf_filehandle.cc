@@ -252,7 +252,7 @@ Status PF_FileHandle::FlushPages() {
   if (use_wal_) {
     PageInfo page_info(rel_id_, type_, -1);
     s = buffer_manager_wal_->UnpinPage(fd_, page_info); if (!s.ok()) return s;
-    s = buffer_manager_wal_->UnpinPage(fd_, page_info); if (!s.ok()) return s;
+    s = buffer_manager_wal_->FlushPages(fd_); if (!s.ok()) return s;
   } else {
     s = buffer_manager_->UnpinPage(fd_, -1); if (!s.ok()) return s;
     s = buffer_manager_->FlushPages(fd_); if (!s.ok()) return s;

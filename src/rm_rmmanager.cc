@@ -57,6 +57,10 @@ Status RM_Manager::CreateFile(const char *file_name, int record_size) {
   s = fh.MarkDirty(0); if (!s.ok()) return s;
   s = fh.UnpinPage(0); if (!s.ok()) return s;
   s = pf_manager_.CloseFile(fh); if (!s.ok()) return s;
+  if (fh.UseWal()) {
+    int rt = pf_manager_.Commit();
+    assert(rt == 0);
+  }
   return Status::OK();
 }
 
@@ -66,7 +70,7 @@ Status RM_Manager::OpenFile(const char *file_name, RM_FileHandle &file_handle) {
   }
   Status s;
   Page p;
-  s = pf_manager_.OpenFile(file_name, file_handle.pfh_);
+  s = pf_manager_.OpenFile(file_name, file_handle.pfh_); if (!s.ok()) return s;
   s = file_handle.pfh_.GetPage(0, p); if (!s.ok()) return s;
   memcpy(&file_handle.header_, p.data, sizeof(RM_FileHeader));
   file_handle.file_open_ = true;

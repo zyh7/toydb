@@ -60,7 +60,7 @@ struct DataAttrInfo {
 class SM_Manager {
   friend class QL_Manager;
  public:
-  SM_Manager(IX_Manager &ixm, RM_Manager &rmm, WAL_Manager &wlm);
+  SM_Manager(IX_Manager &ixm, RM_Manager &rmm, WAL_Manager &wlm, PF_Manager &pfm);
   ~SM_Manager();
   Status CreateDb(const char *db_name);
   Status OpenDb(const char *db_name);
@@ -78,6 +78,7 @@ class SM_Manager {
   IX_Manager &ixm_;
   RM_Manager &rmm_;
   WAL_Manager &wlm_;
+  PF_Manager &pfm_;
 
   RM_FileHandle rel_cat_fh_;
   RM_FileHandle attr_cat_fh_;

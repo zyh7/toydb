@@ -23,7 +23,7 @@ int main() {
   PF_Manager pfm;
   RM_Manager rmm(pfm);
   IX_Manager ixm(pfm);
-  SM_Manager smm(ixm, rmm, wlm);
+  SM_Manager smm(ixm, rmm, wlm, pfm);
   QL_Manager qlm(smm, ixm, rmm);
 
   Status s;

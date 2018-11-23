@@ -9,6 +9,7 @@ namespace toydb{
 class LockFile;
 class WALFileHeader;
 class FrameHashTable;
+class PF_Manager;
 
 class WAL_FileHandle{
  public:
@@ -21,8 +22,8 @@ class WAL_FileHandle{
   int Rollback();
  private:
   friend class WAL_Manager;
-  int Hash(int rel_id, PageNum page_num, int type);
-  int Find(FrameHashTable *table, int rel_id, PageNum page_num, int type);  // return frame number
+  int Hash(int rel_id, int type, PageNum page_num);
+  int Find(FrameHashTable *table, int rel_id, int type, PageNum page_num);  // return frame number
   int WriteBack(int head_frame, int tail_frame);
   int NumFrames();
   int NumTables();
@@ -49,9 +50,10 @@ class WAL_Manager{
   int CreateLockFile(const char *db_name);
   int CreateWALIndex(const char *db_name);
   int DeleteFile(const char *fname);
-  int OpenDB(const char *db_name, WAL_FileHandle &wh);
+  int OpenDB(const char *db_name, PF_Manager &pfm);
   int CloseDB(WAL_FileHandle &wh);
 private:
+  int OpenDB(const char *db_name, WAL_FileHandle &wh);
   int ValidateWalHeader(WALFileHeader &header);
   // no copying allowed
   WAL_Manager(const WAL_Manager &w);

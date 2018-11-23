@@ -41,7 +41,7 @@ struct PageInfo{
   }
 
   bool operator==(const PageInfo &page_info) {
-    return (rel_id = page_info.rel_id && type == page_info.type
+    return (rel_id == page_info.rel_id && type == page_info.type
         && page_num == page_info.page_num);
   }
 
@@ -59,7 +59,7 @@ struct FileEntry {
 };
 
 struct Frame {
-  FrameEntry entry;
+  PageInfo entry;
   char page[kPageSize];
 };
 

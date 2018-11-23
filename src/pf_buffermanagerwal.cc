@@ -140,6 +140,10 @@ Status BufferManagerWal::GetPage(int fd, const PageInfo &page_info, char **ppbuf
   return Status::OK();
 }
 
+int BufferManagerWal::Commit() {
+  return wh_.Commit();
+}
+
 Status BufferManagerWal::AllocatePage(int fd, PageInfo page_info, char **ppbuffer) {
 
   Status s;

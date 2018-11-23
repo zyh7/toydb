@@ -20,7 +20,7 @@
 
 namespace toydb {
 
-SM_Manager::SM_Manager(IX_Manager &ixm, RM_Manager &rmm, WAL_Manager &wlm) : ixm_(ixm), rmm_(rmm), wlm_(wlm) {
+SM_Manager::SM_Manager(IX_Manager &ixm, RM_Manager &rmm, WAL_Manager &wlm, PF_Manager &pfm) : ixm_(ixm), rmm_(rmm), wlm_(wlm) ,pfm_(pfm) {
 
 }
 
@@ -58,6 +58,9 @@ Status SM_Manager::OpenDb(const char *db_name) {
   }
   s = rmm_.OpenFile("relcat", rel_cat_fh_); if (!s.ok()) return s;
   s = rmm_.OpenFile("attrcat", attr_cat_fh_); if (!s.ok()) return s;
+
+  int rt = wlm_.OpenDB(db_name, pfm_);
+  assert(rt == 0);
   return Status::OK();
 }
 

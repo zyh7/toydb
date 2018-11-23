@@ -21,8 +21,10 @@ HashTableWal::~HashTableWal() {
 }
 
 int HashTableWal::Hash(const PageInfo &page_info) {
-  return (page_info.rel_id * 16381 + page_info.type * 21841
+  int slot = (page_info.rel_id * 16381 + page_info.type * 21841
       + page_info.page_num * 29123) % num_buckets_;
+  if (slot < 0) slot += num_buckets_;
+  return slot;
 }
 
 int HashTableWal::Find(const PageInfo &page_info) {
